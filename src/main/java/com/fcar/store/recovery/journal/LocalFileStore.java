@@ -89,7 +89,6 @@ public class LocalFileStore implements AbstractStore {
             LogLocalFile logLocalFile = new LogLocalFile(new File(file.getAbsolutePath() + ".log"), n, this.force);
             //总的操作数
             long itemsCount = dataLocalFile.length() / OperateItem.LENGTH;
-
         }
     }
 
