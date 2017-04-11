@@ -20,6 +20,8 @@ public class LocalFileStore implements AbstractStore {
     //文件最大20M
     public static final int FILE_SIZE = 1024 * 1024 * 20;
 
+    private LocalFileAppender localFileAppender;
+
     private String path;
 
     private String name;
@@ -40,8 +42,25 @@ public class LocalFileStore implements AbstractStore {
         } else {
             this.indexMap = indexMap;
         }
-
+        this.localFileAppender = new LocalFileAppender();
         this.initLoad();
+        //当应用被关闭的时候,如果没有关闭文件,关闭之.对某些操作系统有用
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                try {
+                    LocalFileStore.this.close();
+                } catch (final IOException e) {
+                    logger.error("close error", e);
+                }
+            }
+        });
+    }
+
+    public LocalFileStore(final String path,
+                          final String name,
+                          final boolean force) throws IOException {
+        this(path, name, force, null);
     }
 
     /*
@@ -89,6 +108,8 @@ public class LocalFileStore implements AbstractStore {
             LogLocalFile logLocalFile = new LogLocalFile(new File(file.getAbsolutePath() + ".log"), n, this.force);
             //总的操作数
             long itemsCount = dataLocalFile.length() / OperateItem.LENGTH;
+            for (int i = 0; i < itemsCount; ++i) {
+            }
         }
     }
 
