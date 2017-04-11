@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 本地文件日志存储
@@ -19,6 +21,12 @@ public class LocalFileStore implements AbstractStore {
 
     //文件最大20M
     public static final int FILE_SIZE = 1024 * 1024 * 20;
+
+    public Map<Integer, LocalFile> dataLocalFiles = new ConcurrentHashMap<Integer, LocalFile>();
+
+    protected Map<Integer, LogLocalFile> logLocalFiles = new ConcurrentHashMap<Integer, LogLocalFile>();
+
+    private final Map<BytesKey, Long> lastModifiedMap = new ConcurrentHashMap<BytesKey, Long>();
 
     private LocalFileAppender localFileAppender;
 
@@ -109,8 +117,64 @@ public class LocalFileStore implements AbstractStore {
             //总的操作数
             long itemsCount = dataLocalFile.length() / OperateItem.LENGTH;
             for (int i = 0; i < itemsCount; ++i) {
+                ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[OperateItem.LENGTH]);
+                //实际上是读取一个操作记录
+                logLocalFile.read(byteBuffer, i * OperateItem.LENGTH);
+                if (byteBuffer.hasRemaining()) {
+                    logger.warn("log file error:" + logLocalFile + ", index:" + i);
+                    continue;
+                }
+                OperateItem operateItem = new OperateItem();
+                operateItem.parse(byteBuffer.array());
+                BytesKey bytesKey = new BytesKey(operateItem.getKey());
+                switch (operateItem.getOperate()) {
+                    case OperateItem.OP_ADD:
+                        OperateItem cachedItem = indexMap.get(bytesKey);
+                        if (null != cachedItem) {
+                            this.indexMap.remove(bytesKey);
+                            this.lastModifiedMap.remove(bytesKey);
+                        }
+                        //引用计数,为了便于后续的删除以及处理
+                        boolean addRefCount = true;
+                        if (tempIndexMap.get(bytesKey) != null) {
+                            //在同一个文件中add或者update过，那么只是更新内容，而不增加引用计数。
+                            addRefCount = false;
+                        }
+                        tempIndexMap.put(bytesKey, operateItem);
+                        if (addRefCount) {
+                            dataLocalFile.increment();
+                        }
+                        break;
+                    case OperateItem.OP_DEL:
+                        tempIndexMap.remove(bytesKey);
+                        dataLocalFile.decrement();
+                        break;
+                    default:
+                        logger.warn("unknow operateItem:" + (int) operateItem.getOperate());
+                        break;
+                }
+            }
+            // 如果这个数据文件已经达到指定大小，并且不再使用，删除
+            if (dataLocalFile.length() >= FILE_SIZE && dataLocalFile.isUnUsed()) {
+                dataLocalFile.delete();
+                logLocalFile.delete();
+                logger.warn(dataLocalFile + "不用了，也超过了大小，删除");
+            } else {
+                this.dataLocalFiles.put(n, dataLocalFile);
+                this.logLocalFiles.put(n, logLocalFile);
+                //如果有索引，加入总索引
+                if (!dataLocalFile.isUnUsed()) {
+                    this.indexMap.putAll(tempIndexMap);
+                    //从新启动后，用日志文件的最后修改时间,这里没有必要非常精确.
+                    final long lastModified = dataLocalFile.lastModified();
+                    for (final BytesKey key : tempIndexMap.keySet()) {
+                        this.lastModifiedMap.put(key, lastModified);
+                    }
+                    logger.warn("还在使用，放入索引，referenceCount:" + dataLocalFile.getReferenceCount() + ", index:" + tempIndexMap.size());
+                }
             }
         }
+        logger.warn("恢复数据：" + this.size());
     }
 
     /**
