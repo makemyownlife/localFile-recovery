@@ -78,11 +78,11 @@ public class OperateItem {
     public byte[] toByte() {
         final byte[] data = new byte[LENGTH];
         final ByteBuffer bf = ByteBuffer.wrap(data);
-        bf.put(this.key);
-        bf.put(this.operate);
-        bf.putInt(this.number);
-        bf.putLong(this.offset);
-        bf.putInt(this.length);
+        bf.put(this.key);                             //4
+        bf.put(this.operate);                        //1
+        bf.putInt(this.number);                      //4
+        bf.putLong(this.offset);                     //8
+        bf.putInt(this.length);                      //4
         bf.flip();
         return bf.array();
     }

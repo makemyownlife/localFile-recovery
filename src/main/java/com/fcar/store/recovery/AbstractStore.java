@@ -13,9 +13,13 @@ public interface AbstractStore {
 
     void add(byte[] key, byte[] data, boolean force) throws IOException, InterruptedException;
 
-    Iterator<byte[]> iterator() throws IOException;
+    boolean remove(byte[] key) throws IOException;
+
+    boolean remove(byte[] key, boolean force) throws IOException;
 
     byte[] get(byte[] key) throws IOException;
+
+    Iterator<byte[]> iterator() throws IOException;
 
     //所有的消息数量
     int size();

@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 本地文件日志存储
@@ -22,6 +23,9 @@ public class LocalFileStore implements AbstractStore {
     //文件最大20M
     public static final int FILE_SIZE = 1024 * 1024 * 20;
 
+    //当前的文件编号
+    private final AtomicInteger number = new AtomicInteger(0);
+
     public Map<Integer, LocalFile> dataLocalFiles = new ConcurrentHashMap<Integer, LocalFile>();
 
     protected Map<Integer, LogLocalFile> logLocalFiles = new ConcurrentHashMap<Integer, LogLocalFile>();
@@ -29,6 +33,12 @@ public class LocalFileStore implements AbstractStore {
     private final Map<BytesKey, Long> lastModifiedMap = new ConcurrentHashMap<BytesKey, Long>();
 
     private LocalFileAppender localFileAppender;
+
+    //当前的数据文件
+    private LocalFile currentDataFile;
+
+    //当前的日志文件
+    private LogLocalFile currentLogFile;
 
     private String path;
 
@@ -63,6 +73,7 @@ public class LocalFileStore implements AbstractStore {
                 }
             }
         });
+
     }
 
     public LocalFileStore(final String path,
@@ -108,7 +119,6 @@ public class LocalFileStore implements AbstractStore {
         for (final Integer n : indices) {
             logger.warn("处理index为" + n + "的文件");
             Map<BytesKey, OperateItem> tempIndexMap = new HashMap<BytesKey, OperateItem>();
-            //数据文件
             File file = new File(parentDir, this.name + "." + n);
             //数据文件
             LocalFile dataLocalFile = new LocalFile(file, n, this.force);
@@ -174,6 +184,21 @@ public class LocalFileStore implements AbstractStore {
                 }
             }
         }
+        //校验加载的文件,并设置当前文件
+        if (this.dataLocalFiles.size() > 0) {
+            indices = this.dataLocalFiles.keySet().toArray(new Integer[this.dataLocalFiles.keySet().size()]);
+            Arrays.sort(indices);
+            for (int i = 0; i < indices.length - 1; i++) {
+                final LocalFile dataLocalFile = this.dataLocalFiles.get(indices[i]);
+                if (dataLocalFile.isUnUsed() || dataLocalFile.length() < FILE_SIZE) {
+                    throw new IllegalStateException("非当前文件的状态是大于等于文件块长度，并且是used状态");
+                }
+            }
+            final Integer n = indices[indices.length - 1];
+            this.number.set(n.intValue());
+            this.currentDataFile = this.dataLocalFiles.get(n);
+            this.currentLogFile = this.logLocalFiles.get(n);
+        }
         logger.warn("恢复数据：" + this.size());
     }
 
@@ -188,12 +213,22 @@ public class LocalFileStore implements AbstractStore {
 
     @Override
     public void add(byte[] key, byte[] data) throws IOException, InterruptedException {
-
+        
     }
 
     @Override
     public void add(byte[] key, byte[] data, boolean force) throws IOException, InterruptedException {
 
+    }
+
+    @Override
+    public boolean remove(byte[] key) throws IOException {
+        return false;
+    }
+
+    @Override
+    public boolean remove(byte[] key, boolean force) throws IOException {
+        return false;
     }
 
     @Override
