@@ -18,6 +18,7 @@ public class OperateItem {
 
     public static final int LENGTH = KEY_LENGTH + 1 + 4 + 8 + 4;
 
+    //一个字节 -- 操作类型(添加或者删除)
     private byte operate;
 
     private byte[] key;
@@ -78,11 +79,11 @@ public class OperateItem {
     public byte[] toByte() {
         final byte[] data = new byte[LENGTH];
         final ByteBuffer bf = ByteBuffer.wrap(data);
-        bf.put(this.key);                             //4
-        bf.put(this.operate);                        //1
-        bf.putInt(this.number);                      //4
-        bf.putLong(this.offset);                     //8
-        bf.putInt(this.length);                      //4
+        bf.put(this.key);
+        bf.put(this.operate);
+        bf.putInt(this.number);
+        bf.putLong(this.offset);
+        bf.putInt(this.length);
         bf.flip();
         return bf.array();
     }

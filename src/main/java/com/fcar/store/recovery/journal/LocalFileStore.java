@@ -60,7 +60,7 @@ public class LocalFileStore implements AbstractStore {
         } else {
             this.indexMap = indexMap;
         }
-        this.localFileAppender = new LocalFileAppender();
+        this.localFileAppender = new LocalFileAppender(this);
         this.initLoad();
         //当应用被关闭的时候,如果没有关闭文件,关闭之.对某些操作系统有用
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -213,7 +213,7 @@ public class LocalFileStore implements AbstractStore {
 
     @Override
     public void add(byte[] key, byte[] data) throws IOException, InterruptedException {
-        
+
     }
 
     @Override
