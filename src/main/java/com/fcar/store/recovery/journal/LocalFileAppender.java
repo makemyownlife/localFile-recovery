@@ -26,6 +26,7 @@ public class LocalFileAppender {
             throw new RuntimeException("DataFileAppender已经关闭");
         }
         OperateItem operateItem = new OperateItem();
+        operateItem.setKey(bytesKey.getData());
         return operateItem;
     }
 
