@@ -21,15 +21,16 @@ public class LocalFileAppender {
         this.localFileStore = localFileStore;
     }
 
-    public void close() {
-
-    }
-
-    public OperateItem store(final OperateItem operateItem, final BytesKey bytesKey, final byte[] data, final boolean sync) throws IOException {
+    public OperateItem store(byte operate, BytesKey bytesKey, final byte[] data, final boolean sync) throws IOException {
         if (!this.started) {
             throw new RuntimeException("DataFileAppender已经关闭");
         }
+        OperateItem operateItem = new OperateItem();
         return operateItem;
+    }
+
+    public void close() {
+
     }
 
 }

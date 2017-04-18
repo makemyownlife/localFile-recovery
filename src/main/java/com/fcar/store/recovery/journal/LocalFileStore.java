@@ -221,8 +221,16 @@ public class LocalFileStore implements AbstractStore {
         }
     }
 
-    private OperateItem innerAdd(final byte[] key, final byte[] data, final long oldLastTime, final boolean force) {
-        return null;
+    private OperateItem innerAdd(final byte[] key, final byte[] data, final long oldLastTime, final boolean force) throws IOException {
+        BytesKey bytesKey = new BytesKey(key);
+        OperateItem operateItem = this.localFileAppender.store(OperateItem.OP_ADD, bytesKey, data, force);
+        this.indexMap.put(bytesKey, operateItem);
+        if (oldLastTime == -1) {
+            this.lastModifiedMap.put(bytesKey, System.currentTimeMillis());
+        } else {
+            this.lastModifiedMap.put(bytesKey, oldLastTime);
+        }
+        return operateItem;
     }
 
     //=========================================================================================basic method end ================================================================================================
