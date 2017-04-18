@@ -139,6 +139,42 @@ public class LocalFile {
         }
     }
 
+    /**
+     * 写入bf长度的数据到文件，文件指针会向后移动
+     *
+     * @param bf
+     * @return 写入后的文件position
+     * @throws IOException
+     */
+    public long write(final ByteBuffer bf) throws IOException {
+        while (bf.hasRemaining()) {
+            final int l = this.fileChannel.write(bf);
+            if (l < 0) {
+                break;
+            }
+        }
+        return this.fileChannel.position();
+    }
+
+
+    /**
+     * 从指定位置写入bf长度的数据到文件，文件指针<b>不会</b>向后移动
+     *
+     * @param offset
+     * @param bf
+     * @throws IOException
+     */
+    public void write(final long offset, final ByteBuffer bf) throws IOException {
+        int size = 0;
+        while (bf.hasRemaining()) {
+            final int l = this.fileChannel.write(bf, offset + size);
+            size += l;
+            if (l < 0) {
+                break;
+            }
+        }
+    }
+
     @Override
     public String toString() {
         String result = null;
