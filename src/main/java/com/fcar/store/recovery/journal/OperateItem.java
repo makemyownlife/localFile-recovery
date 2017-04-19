@@ -21,12 +21,16 @@ public class OperateItem {
     //一个字节 -- 操作类型(添加或者删除)
     private byte operate;
 
+    //key转成字节
     private byte[] key;
 
+    //文件号
     private int number;
 
+    //偏移量
     private volatile long offset;
 
+    //数据大小
     private int length;
 
     @Override

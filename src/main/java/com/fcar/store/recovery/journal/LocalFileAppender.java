@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 数据文件操作类
@@ -14,6 +16,8 @@ public class LocalFileAppender {
     private final static Logger logger = LoggerFactory.getLogger(LocalFileAppender.class);
 
     private volatile boolean started = false;
+
+    private final Lock enqueLock = new ReentrantLock();
 
     private LocalFileStore localFileStore;
 
@@ -46,7 +50,12 @@ public class LocalFileAppender {
 
     private void processQueue() {
         while (true) {
-
+            System.out.println("processQueue");
+            try {
+                Thread.currentThread().sleep(50000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -55,8 +64,16 @@ public class LocalFileAppender {
             throw new RuntimeException("DataFileAppender已经关闭");
         }
         OperateItem operateItem = new OperateItem();
+        operateItem.setOperate(operate);
         operateItem.setKey(bytesKey.getData());
+        operateItem.setLength(data.length);
+
+        operateItem = this.enqueueTryWait(operateItem, sync);
         return operateItem;
+    }
+
+    private OperateItem enqueueTryWait(final OperateItem operateItem, final boolean sync) throws IOException {
+        return null;
     }
 
     public void close() {
