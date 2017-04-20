@@ -59,7 +59,7 @@ public class LocalFileAppender {
         LinkedList<WriteCommand> writeCommands = writeCommandQueue.takeCommands();
     }
 
-    public OperateItem store(byte operate, BytesKey bytesKey, final byte[] data, final boolean force) throws IOException {
+    public OperateItem store(byte operate, BytesKey bytesKey, final byte[] data, final boolean force) throws IOException, InterruptedException {
         if (!this.started) {
             throw new RuntimeException("DataFileAppender已经关闭");
         }
@@ -68,11 +68,13 @@ public class LocalFileAppender {
         operateItem.setKey(bytesKey.getData());
         operateItem.setLength(data.length);
 
+        //first:插入到queue队列中
+
         operateItem = this.enqueueTryWait(operateItem, force);
         return operateItem;
     }
 
-    private OperateItem enqueueTryWait(final OperateItem operateItem, final boolean force) throws IOException {
+    private OperateItem enqueueTryWait(final OperateItem operateItem, final boolean force) throws IOException, InterruptedException {
         WriteCommand writeCommand = new WriteCommand(operateItem, force);
         writeCommandQueue.insert(writeCommand);
         return operateItem;

@@ -50,16 +50,14 @@ public class WriteCommandQueue {
         this.flushInterval = flushInterval;
     }
 
-    public boolean insert(WriteCommand writeCommand) {
+    public boolean insert(WriteCommand writeCommand) throws InterruptedException {
+        enqueLock.lockInterruptibly();
         try {
-            enqueLock.lock();
             if (currentTotalDataSize + writeCommand.getOperateItem().getLength() >= maxFlushDataSize && currentTotalDataSize > 0) {
                 notFull.await();
             }
             linkedList.addFirst(writeCommand);
             currentTotalDataSize += (writeCommand.getOperateItem().getLength());
-        } catch (Exception e) {
-            logger.error("offer error:", e);
         } finally {
             enqueLock.unlock();
         }
