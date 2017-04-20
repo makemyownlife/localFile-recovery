@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.LinkedList;
 
 /**
  * 数据文件操作类
@@ -34,7 +35,13 @@ public class LocalFileAppender {
             this.appendThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    LocalFileAppender.this.processQueue();
+                    while (true) {
+                        try {
+                            LocalFileAppender.this.flushQueueData();
+                        } catch (Exception e) {
+                            logger.error("run error:", e);
+                        }
+                    }
                 }
             });
             logger.warn("start appendThread!");
@@ -48,18 +55,11 @@ public class LocalFileAppender {
         }
     }
 
-    private void processQueue() {
-        while (true) {
-            System.out.println("processQueue");
-            try {
-                Thread.currentThread().sleep(50000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+    private void flushQueueData() throws InterruptedException {
+        LinkedList<WriteCommand> writeCommands = writeCommandQueue.takeCommands();
     }
 
-    public OperateItem store(byte operate, BytesKey bytesKey, final byte[] data, final boolean sync) throws IOException {
+    public OperateItem store(byte operate, BytesKey bytesKey, final byte[] data, final boolean force) throws IOException {
         if (!this.started) {
             throw new RuntimeException("DataFileAppender已经关闭");
         }
@@ -68,12 +68,14 @@ public class LocalFileAppender {
         operateItem.setKey(bytesKey.getData());
         operateItem.setLength(data.length);
 
-        operateItem = this.enqueueTryWait(operateItem, sync);
+        operateItem = this.enqueueTryWait(operateItem, force);
         return operateItem;
     }
 
-    private OperateItem enqueueTryWait(final OperateItem operateItem, final boolean sync) throws IOException {
-        return null;
+    private OperateItem enqueueTryWait(final OperateItem operateItem, final boolean force) throws IOException {
+        WriteCommand writeCommand = new WriteCommand(operateItem, force);
+        writeCommandQueue.insert(writeCommand);
+        return operateItem;
     }
 
     public void close() {
