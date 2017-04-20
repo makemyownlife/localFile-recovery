@@ -4,8 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 数据文件操作类
@@ -17,14 +15,16 @@ public class LocalFileAppender {
 
     private volatile boolean started = false;
 
-    private final Lock enqueLock = new ReentrantLock();
-
     private LocalFileStore localFileStore;
 
     private Thread appendThread;
 
+    private WriteCommandQueue writeCommandQueue;
+
     public LocalFileAppender(LocalFileStore localFileStore) {
         this.localFileStore = localFileStore;
+        //写入命令队列
+        this.writeCommandQueue = new WriteCommandQueue();
         //启动异步入盘线程
         this.startAppendThread();
     }
