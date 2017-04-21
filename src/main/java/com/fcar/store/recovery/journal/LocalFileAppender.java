@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.LinkedList;
 
 /**
@@ -57,9 +58,13 @@ public class LocalFileAppender {
 
     private void flushQueueData() throws InterruptedException {
         LinkedList<WriteCommand> writeCommands = writeCommandQueue.takeCommands();
+        Iterator<WriteCommand> iterator = writeCommands.listIterator();
+        while (iterator.hasNext()) {
+            WriteCommand writeCommand = iterator.next();
+        }
     }
 
-    public OperateItem store(byte operate, BytesKey bytesKey, final byte[] data, final boolean force) throws IOException, InterruptedException {
+    public void store(byte operate, BytesKey bytesKey, final byte[] data, final boolean force) throws IOException, InterruptedException {
         if (!this.started) {
             throw new RuntimeException("DataFileAppender已经关闭");
         }
@@ -68,16 +73,12 @@ public class LocalFileAppender {
         operateItem.setKey(bytesKey.getData());
         operateItem.setLength(data.length);
 
-        //first:插入到queue队列中
-
-        operateItem = this.enqueueTryWait(operateItem, force);
-        return operateItem;
+        enqueueTryWait(operateItem, data, force);
     }
 
-    private OperateItem enqueueTryWait(final OperateItem operateItem, final boolean force) throws IOException, InterruptedException {
-        WriteCommand writeCommand = new WriteCommand(operateItem, force);
+    private void enqueueTryWait(final OperateItem operateItem, byte[] data, final boolean force) throws IOException, InterruptedException {
+        WriteCommand writeCommand = new WriteCommand(operateItem, data, force);
         writeCommandQueue.insert(writeCommand);
-        return operateItem;
     }
 
     public void close() {

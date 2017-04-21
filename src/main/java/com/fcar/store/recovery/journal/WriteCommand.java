@@ -12,7 +12,10 @@ public class WriteCommand {
     //是否同步
     private boolean force;
 
-    public WriteCommand(OperateItem operateItem, boolean force) {
+    //数据
+    private byte[] data;
+
+    public WriteCommand(OperateItem operateItem, byte[] data, boolean force) {
         this.operateItem = operateItem;
         this.force = force;
     }
@@ -24,4 +27,9 @@ public class WriteCommand {
     public boolean isForce() {
         return force;
     }
+
+    public byte[] getData() {
+        return data;
+    }
+
 }

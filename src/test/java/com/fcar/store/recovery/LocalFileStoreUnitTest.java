@@ -25,13 +25,33 @@ public class LocalFileStoreUnitTest {
                 true,
                 null
         );
-        Long orderId = 87665L;
-        byte[] data = "张勇".getBytes("UTF-8");
-        final ByteBuffer buf = ByteBuffer.allocate(16);
-        buf.putLong(orderId);
-        byte[] arr = buf.array();
-        store.add(arr, data);
-        Thread.currentThread().sleep(500000);
+        for (int i = 0; i < 2; i++) {
+            Long orderId = 87665L;
+            byte[] data = "张勇".getBytes("UTF-8");
+            final ByteBuffer buf = ByteBuffer.allocate(16);
+            buf.putLong(orderId);
+            byte[] arr = buf.array();
+            store.add(arr, data);
+        }
+        Thread.currentThread().sleep(3000);
+        for (int i = 0; i < 1; i++) {
+            Long orderId = 7876L;
+            byte[] data = "李林".getBytes("UTF-8");
+            final ByteBuffer buf = ByteBuffer.allocate(16);
+            buf.putLong(orderId);
+            byte[] arr = buf.array();
+            store.add(arr, data);
+        }
+        Thread.currentThread().sleep(2000);
+        for (int i = 0; i < 1; i++) {
+            Long orderId = 1876L;
+            byte[] data = "美好".getBytes("UTF-8");
+            final ByteBuffer buf = ByteBuffer.allocate(16);
+            buf.putLong(orderId);
+            byte[] arr = buf.array();
+            store.add(arr, data);
+        }
+        Thread.currentThread().sleep(5000);
     }
 
 }

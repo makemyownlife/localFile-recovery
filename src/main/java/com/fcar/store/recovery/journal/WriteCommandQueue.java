@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -18,60 +19,59 @@ public class WriteCommandQueue {
 
     private final Lock enqueLock = new ReentrantLock();
 
-    private final Condition notFull = enqueLock.newCondition();
-
-    private final Lock flushLock = new ReentrantLock();
-
-    private final Condition flushCondition = flushLock.newCondition();
+    private final Condition available = enqueLock.newCondition();
 
     //默认自大的刷盘数据大小1M
-    private static int DEFAULT_MAX_FLUSH_DATA_SIZE = 1024 * 1024;
-
-    //默认刷新频率5s
-    private static int DEFAULT_FLUSH_INTERVAL = 5;
+    private static int DEFAULT_MAX_FLUSH_DATA_SIZE = 10;
 
     //当前队列中存储的数据大小
-    private int currentTotalDataSize = 0;
+    private AtomicInteger currentTotalDataSize = new AtomicInteger(0);
+
+    //上次刷新时间
+    private volatile long lastFlushTime = System.currentTimeMillis();
 
     private LinkedList<WriteCommand> linkedList = new LinkedList<WriteCommand>();
 
     //最大的刷盘数据
     private int maxFlushDataSize;
 
-    //隔多长时间刷盘
-    private int flushInterval;
-
     public WriteCommandQueue() {
-        this(DEFAULT_MAX_FLUSH_DATA_SIZE, DEFAULT_FLUSH_INTERVAL);
+        this(DEFAULT_MAX_FLUSH_DATA_SIZE);
     }
 
-    public WriteCommandQueue(int maxFlushDataSize, int flushInterval) {
+    public WriteCommandQueue(int maxFlushDataSize) {
         this.maxFlushDataSize = maxFlushDataSize;
-        this.flushInterval = flushInterval;
     }
 
-    public boolean insert(WriteCommand writeCommand) throws InterruptedException {
-        enqueLock.lockInterruptibly();
+    public void insert(WriteCommand writeCommand) throws InterruptedException {
+        final Lock lock = this.enqueLock;
+        lock.lockInterruptibly();
         try {
-            if (currentTotalDataSize + writeCommand.getOperateItem().getLength() >= maxFlushDataSize && currentTotalDataSize > 0) {
-                notFull.await();
-            }
             linkedList.addFirst(writeCommand);
-            currentTotalDataSize += (writeCommand.getOperateItem().getLength());
+            currentTotalDataSize.addAndGet(writeCommand.getOperateItem().getLength());
+            if (needFlush() || writeCommand.isForce()) {
+                available.signal();
+            }
         } finally {
-            enqueLock.unlock();
+            lock.unlock();
+        }
+    }
+
+    private boolean needFlush() {
+        if (currentTotalDataSize.get() >= maxFlushDataSize) {
+            return true;
         }
         return false;
     }
 
     public LinkedList<WriteCommand> takeCommands() throws InterruptedException {
+        enqueLock.lockInterruptibly();
         try {
-            enqueLock.lock();
-            flushCondition.await();
+            available.await();
+            return this.linkedList;
         } finally {
             enqueLock.unlock();
         }
-        return null;
     }
 
 }

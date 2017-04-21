@@ -60,8 +60,11 @@ public class LocalFileStore implements AbstractStore {
         } else {
             this.indexMap = indexMap;
         }
-        this.localFileAppender = new LocalFileAppender(this);
         this.initLoad();
+        if (this.currentDataFile == null || this.currentLogFile == null) {
+            this.createNewLocalFile();
+        }
+        this.localFileAppender = new LocalFileAppender(this);
         //当应用被关闭的时候,如果没有关闭文件,关闭之.对某些操作系统有用
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
@@ -73,7 +76,6 @@ public class LocalFileStore implements AbstractStore {
                 }
             }
         });
-
     }
 
     public LocalFileStore(final String path,
@@ -211,6 +213,18 @@ public class LocalFileStore implements AbstractStore {
         }
     }
 
+    /**
+     * 创建新的本地文件
+     */
+    private void createNewLocalFile() throws IOException {
+        final int n = this.number.incrementAndGet();
+        this.currentDataFile = new LocalFile(new File(this.path + File.separator + this.name + "." + n), n, this.force);
+        this.currentLogFile = new LogLocalFile(new File(this.path + File.separator + this.name + "." + n + ".log"), n, this.force);
+        this.dataLocalFiles.put(Integer.valueOf(n), this.currentDataFile);
+        this.logLocalFiles.put(Integer.valueOf(n), this.currentLogFile);
+        logger.info("生成新文件：" + this.currentDataFile);
+    }
+
     //=========================================================================================basic method start ================================================================================================
     private void checkParam(final byte[] key, final byte[] data) {
         if (null == key || null == data) {
@@ -221,16 +235,9 @@ public class LocalFileStore implements AbstractStore {
         }
     }
 
-    private OperateItem innerAdd(final byte[] key, final byte[] data, final long oldLastTime, final boolean force) throws IOException, InterruptedException {
+    private void innerAdd(final byte[] key, final byte[] data, final long oldLastTime, final boolean force) throws IOException, InterruptedException {
         BytesKey bytesKey = new BytesKey(key);
-        OperateItem operateItem = this.localFileAppender.store(OperateItem.OP_ADD, bytesKey, data, force);
-        this.indexMap.put(bytesKey, operateItem);
-        if (oldLastTime == -1) {
-            this.lastModifiedMap.put(bytesKey, System.currentTimeMillis());
-        } else {
-            this.lastModifiedMap.put(bytesKey, oldLastTime);
-        }
-        return operateItem;
+        this.localFileAppender.store(OperateItem.OP_ADD, bytesKey, data, force);
     }
 
     //=========================================================================================basic method end ================================================================================================
@@ -275,5 +282,31 @@ public class LocalFileStore implements AbstractStore {
     public void close() throws IOException {
 
     }
+
+    //==========================================================================================get method start ===========================================================
+    public AtomicInteger getNumber() {
+        return number;
+    }
+
+    public Map<Integer, LocalFile> getDataLocalFiles() {
+        return dataLocalFiles;
+    }
+
+    public Map<Integer, LogLocalFile> getLogLocalFiles() {
+        return logLocalFiles;
+    }
+
+    public LocalFile getCurrentDataFile() {
+        return currentDataFile;
+    }
+
+    public LogLocalFile getCurrentLogFile() {
+        return currentLogFile;
+    }
+
+    public String getName() {
+        return name;
+    }
+    //==========================================================================================get method end ===========================================================
 
 }
