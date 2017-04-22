@@ -183,7 +183,6 @@ public class LocalFileAppender {
 
     private void enqueueTryWait(final OperateItem operateItem, byte[] data, final boolean force) throws IOException, InterruptedException {
         WriteCommand writeCommand = new WriteCommand(operateItem, data, force);
-        System.out.println(writeCommand.isForce());
         writeCommandQueue.insert(writeCommand);
     }
 

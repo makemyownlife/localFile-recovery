@@ -50,7 +50,6 @@ public class WriteCommandQueue {
         lock.lockInterruptibly();
         try {
             linkedList.addFirst(writeCommand);
-            currentTotalDataSize.addAndGet(writeCommand.getOperateItem().getLength());
             if (needFlush() || writeCommand.isForce()) {
                 available.signal();
             }
@@ -76,7 +75,8 @@ public class WriteCommandQueue {
                     available.await();
                 }
                 if (writeCommand != null) {
-                    writeCommands.add(this.linkedList.pop());
+                    writeCommand = this.linkedList.pop();
+                    writeCommands.add(writeCommand);
                     continue;
                 }
                 break;
