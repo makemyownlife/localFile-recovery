@@ -263,7 +263,7 @@ public class LocalFileStore implements AbstractStore {
     public void add(byte[] key, byte[] data, boolean force) throws IOException, InterruptedException {
         // 先检查是否已经存在，如果已经存在抛出异常 判断文件是否满了，添加name.1，获得offset，记录日志，增加引用计数，加入或更新内存索引
         this.checkParam(key, data);
-        this.innerAdd(key, data, -1, false);
+        this.innerAdd(key, data, -1, force);
     }
 
     @Override

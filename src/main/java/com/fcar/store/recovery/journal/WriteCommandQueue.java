@@ -69,13 +69,14 @@ public class WriteCommandQueue {
     public List<WriteCommand> getQueueCommands() throws InterruptedException {
         enqueLock.lockInterruptibly();
         try {
-            available.await();
             List<WriteCommand> writeCommands = new ArrayList<WriteCommand>(this.linkedList.size());
             while (true) {
                 WriteCommand writeCommand = this.linkedList.peek();
+                if (writeCommand == null && writeCommands.size() == 0) {
+                    available.await();
+                }
                 if (writeCommand != null) {
-                    writeCommands.add(writeCommand);
-                    this.linkedList.remove();
+                    writeCommands.add(this.linkedList.pop());
                     continue;
                 }
                 break;
