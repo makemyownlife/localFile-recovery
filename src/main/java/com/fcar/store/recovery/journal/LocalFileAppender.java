@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * 数据文件操作类
@@ -56,12 +57,26 @@ public class LocalFileAppender {
         }
     }
 
+    /**
+     * 刷新队列数据
+     * 1  将数据拆成 多个批次数据
+     * 2  多个批次一次 先写入数据文件，然后入日志文件
+     * 3  清理batch -- queue的内容
+     * 4  处理完成后，设置最后刷新时间
+     *
+     * @throws InterruptedException
+     */
     private void flushQueueData() throws InterruptedException {
+        List<WriteBatch> writeBatchList = asembleWriteBatch();
+    }
+
+    private List<WriteBatch> asembleWriteBatch() throws InterruptedException {
         LinkedList<WriteCommand> writeCommands = writeCommandQueue.takeCommands();
         Iterator<WriteCommand> iterator = writeCommands.listIterator();
         while (iterator.hasNext()) {
             WriteCommand writeCommand = iterator.next();
         }
+        return null;
     }
 
     public void store(byte operate, BytesKey bytesKey, final byte[] data, final boolean force) throws IOException, InterruptedException {

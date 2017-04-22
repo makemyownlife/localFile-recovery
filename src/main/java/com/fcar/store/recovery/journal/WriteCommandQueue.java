@@ -58,7 +58,7 @@ public class WriteCommandQueue {
     }
 
     private boolean needFlush() {
-        if (currentTotalDataSize.get() >= maxFlushDataSize) {
+        if (currentTotalDataSize.get() >= maxFlushDataSize || (System.currentTimeMillis() - lastFlushTime > 2000L)) {
             return true;
         }
         return false;
@@ -72,6 +72,10 @@ public class WriteCommandQueue {
         } finally {
             enqueLock.unlock();
         }
+    }
+
+    public void setLastFlushTime() {
+        this.lastFlushTime = System.currentTimeMillis();
     }
 
 }
