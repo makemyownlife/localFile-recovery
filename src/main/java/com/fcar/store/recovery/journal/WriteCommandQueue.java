@@ -64,7 +64,7 @@ public class WriteCommandQueue {
         return false;
     }
 
-    public LinkedList<WriteCommand> takeCommands() throws InterruptedException {
+    public LinkedList<WriteCommand> getQueueCommands() throws InterruptedException {
         enqueLock.lockInterruptibly();
         try {
             available.await();

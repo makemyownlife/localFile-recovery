@@ -4,9 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 /**
  * 数据文件操作类
@@ -71,10 +69,14 @@ public class LocalFileAppender {
     }
 
     private List<WriteBatch> asembleWriteBatch() throws InterruptedException {
-        LinkedList<WriteCommand> writeCommands = writeCommandQueue.takeCommands();
+        Map<Integer ,WriteBatch> batchMap = new TreeMap<Integer, WriteBatch>();
+
+        int number = this.localFileStore.getNumber().get();
+        LinkedList<WriteCommand> writeCommands = writeCommandQueue.getQueueCommands();
         Iterator<WriteCommand> iterator = writeCommands.listIterator();
         while (iterator.hasNext()) {
             WriteCommand writeCommand = iterator.next();
+            
         }
         return null;
     }

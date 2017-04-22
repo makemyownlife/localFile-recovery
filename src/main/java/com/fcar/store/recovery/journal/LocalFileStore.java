@@ -230,6 +230,10 @@ public class LocalFileStore implements AbstractStore {
         if (null == key || null == data) {
             throw new NullPointerException("key/data can't be null");
         }
+        //写入的文件最大值是1M
+        if (data.length > 1024 * 1024) {
+            throw new IllegalArgumentException("data must less than 1 M !");
+        }
         if (key.length != 16) {
             throw new IllegalArgumentException("key.length must be 16");
         }
