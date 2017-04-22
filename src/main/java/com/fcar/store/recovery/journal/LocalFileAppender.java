@@ -4,7 +4,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 数据文件操作类
@@ -58,27 +62,111 @@ public class LocalFileAppender {
     /**
      * 刷新队列数据
      * 1  将数据拆成 多个批次数据
-     * 2  多个批次一次 先写入数据文件，然后入日志文件
+     * 2  先写入数据文件，然后入日志文件
      * 3  清理batch -- queue的内容
      * 4  处理完成后，设置最后刷新时间
      *
      * @throws InterruptedException
      */
-    private void flushQueueData() throws InterruptedException {
-        List<WriteBatch> writeBatchList = asembleWriteBatch();
+    private void flushQueueData() throws InterruptedException, IOException {
+        Map<Integer, WriteBatch> batchMap = asembleWriteBatch();
+        Iterator it = batchMap.keySet().iterator();
+        while (it.hasNext()) {
+            Integer number = (Integer) it.next();
+            WriteBatch writeBatch = batchMap.get(number);
+            writeDataAndLogFile(writeBatch);
+            processFileAndIndexMap(writeBatch);
+        }
     }
 
-    private List<WriteBatch> asembleWriteBatch() throws InterruptedException {
-        Map<Integer ,WriteBatch> batchMap = new TreeMap<Integer, WriteBatch>();
-
-        int number = this.localFileStore.getNumber().get();
-        LinkedList<WriteCommand> writeCommands = writeCommandQueue.getQueueCommands();
-        Iterator<WriteCommand> iterator = writeCommands.listIterator();
-        while (iterator.hasNext()) {
-            WriteCommand writeCommand = iterator.next();
-            
+    private Map<Integer, WriteBatch> asembleWriteBatch() throws InterruptedException, IOException {
+        Map<Integer, WriteBatch> batchMap = new TreeMap<Integer, WriteBatch>();
+        List<WriteCommand> writeCommands = writeCommandQueue.getQueueCommands();
+        for (int i = 0; i < writeCommands.size(); i++) {
+            //是否需要创建新的文件
+            boolean createNextFile = false;
+            //当前写文件的编号
+            int currentNumber = this.localFileStore.getNumber().get();
+            WriteBatch writeBatch = batchMap.get(currentNumber);
+            WriteCommand writeCommand = (WriteCommand) writeCommands.get(i);
+            LocalFile currentDataFile = this.localFileStore.getCurrentDataFile();
+            if (writeCommand.getOperateItem().getOperate() == OperateItem.OP_ADD) {
+                //文件太大 或者 批次数据太大
+                if (writeCommand.getData().length + currentDataFile.position() >= this.localFileStore.DEFAULT_MAX_FILE_SIZE ||
+                        (writeBatch != null && writeBatch.getBatchDataSize() + writeCommand.getData().length >= this.localFileStore.DEFAULT_MAX_BATCH_SIZE)) {
+                    this.localFileStore.createNewLocalFile();
+                    createNextFile = true;
+                }
+            }
+            //初始化writeBatch
+            if (writeBatch == null || createNextFile) {
+                writeBatch = new WriteBatch(
+                        this.localFileStore.getNumber().get(),
+                        this.localFileStore.getCurrentDataFile(),
+                        this.localFileStore.getCurrentLogFile()
+                );
+                batchMap.put(this.localFileStore.getNumber().get(), writeBatch);
+            }
+            //添加到批次中,并且设置 操作的 offset 和 number
+            writeBatch.addWriteCommandAndSetOperateItem(writeCommand);
         }
-        return null;
+        return batchMap;
+    }
+
+    private void writeDataAndLogFile(WriteBatch writeBatch) {
+        LocalFile dataFile = writeBatch.getDataFile();
+        LogLocalFile logLocalFile = writeBatch.getLogLocalFile();
+        //分配内存资源
+        final ByteBuffer dataBuf = ByteBuffer.allocate(writeBatch.getBatchDataSize());
+        final ByteBuffer logBuf = ByteBuffer.allocate(writeBatch.getWriteCommandList().size() * OperateItem.LENGTH);
+        for (final WriteCommand writeCommand : writeBatch.getWriteCommandList()) {
+            logBuf.put(writeCommand.getOperateItem().toByte());
+            if (writeCommand.getOperateItem().getOperate() == OperateItem.OP_ADD) {
+                dataBuf.put(writeCommand.getData());
+            }
+        }
+        if (dataBuf != null) {
+            dataBuf.flip();
+        }
+        logBuf.flip();
+        //写文件的内容
+        try {
+            if (dataBuf != null) {
+                dataFile.write(dataBuf);
+                dataFile.force();
+            }
+            logLocalFile.write(logBuf);
+            logLocalFile.force();
+        } catch (Exception e) {
+            logger.error("write file error:", e);
+        }
+    }
+
+    private void processFileAndIndexMap(WriteBatch writeBatch) {
+        for (final WriteCommand writeCommand : writeBatch.getWriteCommandList()) {
+            OperateItem operateItem = writeCommand.getOperateItem();
+            if (operateItem.getOperate() == OperateItem.OP_ADD) {
+                this.localFileStore.getIndexMap().put(new BytesKey(operateItem.getKey()), operateItem);
+            }
+            if (operateItem.getOperate() == OperateItem.OP_DEL) {
+                this.localFileStore.getIndexMap().remove(new BytesKey(operateItem.getKey()));
+            }
+        }
+        writeCommandQueue.setLastFlushTime();
+        try {
+            LocalFile dataFile = writeBatch.getDataFile();
+            LogLocalFile logLocalFile = writeBatch.getLogLocalFile();
+
+            int currentNumber = this.localFileStore.getNumber().get();
+            if (currentNumber > writeBatch.getNumber() && dataFile.isUnUsed()) {
+                this.localFileStore.getDataLocalFiles().remove(Integer.valueOf(dataFile.getNumber()));
+                this.localFileStore.getLogLocalFiles().remove(Integer.valueOf(dataFile.getNumber()));
+                dataFile.delete();
+                logLocalFile.delete();
+            }
+        } catch (Exception e) {
+            logger.error("removeProcess error:", e);
+        }
     }
 
     public void store(byte operate, BytesKey bytesKey, final byte[] data, final boolean force) throws IOException, InterruptedException {
@@ -88,7 +176,7 @@ public class LocalFileAppender {
         OperateItem operateItem = new OperateItem();
         operateItem.setOperate(operate);
         operateItem.setKey(bytesKey.getData());
-        operateItem.setLength(data.length);
+        operateItem.setLength(data == null ? 0 : data.length);
 
         enqueueTryWait(operateItem, data, force);
     }

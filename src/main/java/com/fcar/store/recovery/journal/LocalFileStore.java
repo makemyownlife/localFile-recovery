@@ -21,7 +21,10 @@ public class LocalFileStore implements AbstractStore {
     private final static Logger logger = LoggerFactory.getLogger(LocalFileStore.class);
 
     //文件最大20M
-    public static final int FILE_SIZE = 1024 * 1024 * 20;
+    public static final int DEFAULT_MAX_FILE_SIZE = 1024 * 1024 * 20;
+
+    //最大的批次大小
+    public static final int DEFAULT_MAX_BATCH_SIZE = 1024 * 1024 * 4;
 
     //当前的文件编号
     private final AtomicInteger number = new AtomicInteger(0);
@@ -87,7 +90,7 @@ public class LocalFileStore implements AbstractStore {
     /*
      * 类初始化的时候，需要遍历所有的日志文件，恢复内存的索引
      */
-    private void initLoad() throws IOException {
+    private synchronized void initLoad() throws IOException {
         logger.warn("开始恢复数据");
         final String nm = this.name + ".";
         final File parentDir = new File(this.path);
@@ -127,7 +130,7 @@ public class LocalFileStore implements AbstractStore {
             //操作记录文件
             LogLocalFile logLocalFile = new LogLocalFile(new File(file.getAbsolutePath() + ".log"), n, this.force);
             //总的操作数
-            long itemsCount = dataLocalFile.length() / OperateItem.LENGTH;
+            long itemsCount = logLocalFile.length() / OperateItem.LENGTH;
             for (int i = 0; i < itemsCount; ++i) {
                 ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[OperateItem.LENGTH]);
                 //实际上是读取一个操作记录
@@ -167,7 +170,7 @@ public class LocalFileStore implements AbstractStore {
                 }
             }
             // 如果这个数据文件已经达到指定大小，并且不再使用，删除
-            if (dataLocalFile.length() >= FILE_SIZE && dataLocalFile.isUnUsed()) {
+            if (dataLocalFile.length() >= DEFAULT_MAX_FILE_SIZE && dataLocalFile.isUnUsed()) {
                 dataLocalFile.delete();
                 logLocalFile.delete();
                 logger.warn(dataLocalFile + "不用了，也超过了大小，删除");
@@ -192,7 +195,7 @@ public class LocalFileStore implements AbstractStore {
             Arrays.sort(indices);
             for (int i = 0; i < indices.length - 1; i++) {
                 final LocalFile dataLocalFile = this.dataLocalFiles.get(indices[i]);
-                if (dataLocalFile.isUnUsed() || dataLocalFile.length() < FILE_SIZE) {
+                if (dataLocalFile.isUnUsed() || dataLocalFile.length() < DEFAULT_MAX_FILE_SIZE) {
                     throw new IllegalStateException("非当前文件的状态是大于等于文件块长度，并且是used状态");
                 }
             }
@@ -216,7 +219,7 @@ public class LocalFileStore implements AbstractStore {
     /**
      * 创建新的本地文件
      */
-    private void createNewLocalFile() throws IOException {
+    public synchronized void createNewLocalFile() throws IOException {
         final int n = this.number.incrementAndGet();
         this.currentDataFile = new LocalFile(new File(this.path + File.separator + this.name + "." + n), n, this.force);
         this.currentLogFile = new LogLocalFile(new File(this.path + File.separator + this.name + "." + n + ".log"), n, this.force);
@@ -242,6 +245,12 @@ public class LocalFileStore implements AbstractStore {
     private void innerAdd(final byte[] key, final byte[] data, final long oldLastTime, final boolean force) throws IOException, InterruptedException {
         BytesKey bytesKey = new BytesKey(key);
         this.localFileAppender.store(OperateItem.OP_ADD, bytesKey, data, force);
+        if (oldLastTime == -1) {
+            this.lastModifiedMap.put(bytesKey, System.currentTimeMillis());
+        }
+        else {
+            this.lastModifiedMap.put(bytesKey, oldLastTime);
+        }
     }
 
     //=========================================================================================basic method end ================================================================================================
@@ -258,13 +267,15 @@ public class LocalFileStore implements AbstractStore {
     }
 
     @Override
-    public boolean remove(byte[] key) throws IOException {
-        return false;
+    public boolean remove(byte[] key) throws IOException, InterruptedException {
+        return this.remove(key, false);
     }
 
     @Override
-    public boolean remove(byte[] key, boolean force) throws IOException {
-        return false;
+    public boolean remove(byte[] key, boolean force) throws IOException, InterruptedException {
+        BytesKey bytesKey = new BytesKey(key);
+        this.localFileAppender.store(OperateItem.OP_DEL, bytesKey, null, force);
+        return true;
     }
 
     @Override
@@ -310,6 +321,10 @@ public class LocalFileStore implements AbstractStore {
 
     public String getName() {
         return name;
+    }
+
+    public IndexMap getIndexMap() {
+        return indexMap;
     }
     //==========================================================================================get method end ===========================================================
 

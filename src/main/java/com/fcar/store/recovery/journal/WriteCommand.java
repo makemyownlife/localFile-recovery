@@ -17,6 +17,7 @@ public class WriteCommand {
 
     public WriteCommand(OperateItem operateItem, byte[] data, boolean force) {
         this.operateItem = operateItem;
+        this.data = data;
         this.force = force;
     }
 
@@ -30,6 +31,11 @@ public class WriteCommand {
 
     public byte[] getData() {
         return data;
+    }
+
+    @Override
+    public String toString() {
+        return this.operateItem.toString();
     }
 
 }

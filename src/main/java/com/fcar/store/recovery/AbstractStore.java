@@ -13,9 +13,9 @@ public interface AbstractStore {
 
     void add(byte[] key, byte[] data, boolean force) throws IOException, InterruptedException;
 
-    boolean remove(byte[] key) throws IOException;
+    boolean remove(byte[] key) throws IOException, InterruptedException;
 
-    boolean remove(byte[] key, boolean force) throws IOException;
+    boolean remove(byte[] key, boolean force) throws IOException, InterruptedException;
 
     byte[] get(byte[] key) throws IOException;
 
