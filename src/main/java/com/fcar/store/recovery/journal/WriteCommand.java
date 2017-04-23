@@ -38,4 +38,5 @@ public class WriteCommand {
         return this.operateItem.toString();
     }
 
+
 }

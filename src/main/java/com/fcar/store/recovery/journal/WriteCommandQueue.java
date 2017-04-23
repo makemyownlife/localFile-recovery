@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -23,26 +22,23 @@ public class WriteCommandQueue {
 
     private final Condition available = enqueLock.newCondition();
 
-    //默认自大的刷盘数据大小1M
-    private static int DEFAULT_MAX_FLUSH_DATA_SIZE = 1024 * 1024;
-
-    //当前队列中存储的数据大小
-    private AtomicInteger currentTotalDataSize = new AtomicInteger(0);
+    //最大数据刷新条数
+    private static int MAX_FLUSH_COMMANDS_COUNT = 10;
 
     //上次刷新时间
     private volatile long lastFlushTime = System.currentTimeMillis();
 
     private LinkedList<WriteCommand> linkedList = new LinkedList<WriteCommand>();
 
-    //最大的刷盘数据
-    private int maxFlushDataSize;
+    //最大的刷盘数据条数 到达MAX_FLUSH_COMMANDS_COUNT 则刷新到appender线程处理
+    private int maxFlushCommandsCount = MAX_FLUSH_COMMANDS_COUNT;
 
     public WriteCommandQueue() {
-        this(DEFAULT_MAX_FLUSH_DATA_SIZE);
+        this(MAX_FLUSH_COMMANDS_COUNT);
     }
 
-    public WriteCommandQueue(int maxFlushDataSize) {
-        this.maxFlushDataSize = maxFlushDataSize;
+    public WriteCommandQueue(int maxFlushCommandsCount) {
+        this.maxFlushCommandsCount = maxFlushCommandsCount;
     }
 
     public void insert(WriteCommand writeCommand) throws InterruptedException {
@@ -59,14 +55,15 @@ public class WriteCommandQueue {
     }
 
     private boolean needFlush() {
-        if (currentTotalDataSize.get() >= maxFlushDataSize || (System.currentTimeMillis() - lastFlushTime > 2000L)) {
+        if (this.linkedList.size() >= this.maxFlushCommandsCount || (System.currentTimeMillis() - lastFlushTime > 2000L)) {
             return true;
         }
         return false;
     }
 
     public List<WriteCommand> getQueueCommands() throws InterruptedException {
-        enqueLock.lockInterruptibly();
+        final Lock lock = this.enqueLock;
+        lock.lockInterruptibly();
         try {
             List<WriteCommand> writeCommands = new ArrayList<WriteCommand>(this.linkedList.size());
             while (true) {
@@ -83,7 +80,7 @@ public class WriteCommandQueue {
             }
             return writeCommands;
         } finally {
-            enqueLock.unlock();
+            lock.unlock();
         }
     }
 

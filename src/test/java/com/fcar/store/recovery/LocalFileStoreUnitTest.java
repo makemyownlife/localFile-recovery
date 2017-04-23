@@ -1,6 +1,7 @@
 package com.fcar.store.recovery;
 
 import com.fcar.store.recovery.journal.LocalFileStore;
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ public class LocalFileStoreUnitTest {
                 true,
                 null
         );
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 1; i++) {
             Long orderId = 87665L;
             byte[] data = "张勇".getBytes("UTF-8");
             final ByteBuffer buf = ByteBuffer.allocate(16);
@@ -52,6 +53,31 @@ public class LocalFileStoreUnitTest {
             store.add(arr, data);
         }
         Thread.currentThread().sleep(5000);
+    }
+
+    @Test
+    public void testGetData() throws IOException, InterruptedException {
+        String path = "D://localstore";
+        String name = "order-store";
+        AbstractStore store = new LocalFileStore(
+                path,
+                name,
+                true,
+                null
+        );
+        Long orderId = 87665L;
+        byte[] data = "张勇".getBytes("UTF-8");
+        final ByteBuffer buf = ByteBuffer.allocate(16);
+        buf.putLong(orderId);
+        byte[] arr = buf.array();
+//        store.add(arr, data, true);
+
+        Thread.currentThread().sleep(3000);
+        byte[] contents = store.get(arr);
+        String afterStore = new String(contents, "UTF-8");
+        System.out.println(afterStore);
+        Assert.assertEquals("张勇", new String(contents));
+        Thread.currentThread().sleep(50000);
     }
 
 }

@@ -162,7 +162,7 @@ public class LocalFileStore implements AbstractStore {
                         break;
                     case OperateItem.OP_DEL:
                         tempIndexMap.remove(bytesKey);
-                        dataLocalFile.decrement();
+                        dataLocalFile.decrementToZero();
                         break;
                     default:
                         logger.warn("unknow operateItem:" + (int) operateItem.getOperate());
@@ -233,10 +233,6 @@ public class LocalFileStore implements AbstractStore {
         if (null == key || null == data) {
             throw new NullPointerException("key/data can't be null");
         }
-        //写入的文件最大值是1M
-        if (data.length > 1024 * 1024) {
-            throw new IllegalArgumentException("data must less than 1 M !");
-        }
         if (key.length != 16) {
             throw new IllegalArgumentException("key.length must be 16");
         }
@@ -247,8 +243,7 @@ public class LocalFileStore implements AbstractStore {
         this.localFileAppender.store(OperateItem.OP_ADD, bytesKey, data, force);
         if (oldLastTime == -1) {
             this.lastModifiedMap.put(bytesKey, System.currentTimeMillis());
-        }
-        else {
+        } else {
             this.lastModifiedMap.put(bytesKey, oldLastTime);
         }
     }
@@ -280,12 +275,48 @@ public class LocalFileStore implements AbstractStore {
 
     @Override
     public Iterator<byte[]> iterator() throws IOException {
-        return null;
+        final Iterator<BytesKey> it = this.indexMap.keyIterator();
+        return new Iterator<byte[]>() {
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public byte[] next() {
+                final BytesKey bk = it.next();
+                if (null != bk) {
+                    return bk.getData();
+                }
+                return null;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("不支持删除，请直接调用store.remove方法");
+            }
+        };
     }
 
     @Override
     public byte[] get(byte[] key) throws IOException {
-        return new byte[0];
+        byte[] data = null;
+        BytesKey bytesKey = new BytesKey(key);
+        OperateItem operateItem = this.indexMap.get(bytesKey);
+        if (operateItem == null) {
+            return data;
+        }
+        final LocalFile dataFile = this.dataLocalFiles.get(Integer.valueOf(operateItem.getNumber()));
+        if (null != dataFile) {
+            final ByteBuffer bf = ByteBuffer.wrap(new byte[operateItem.getLength()]);
+            dataFile.read(bf, operateItem.getOffset());
+            data = bf.array();
+        } else {
+            logger.warn("数据文件丢失：" + operateItem);
+            this.indexMap.remove(bytesKey);
+            this.lastModifiedMap.remove(bytesKey);
+        }
+        return data;
     }
 
     @Override

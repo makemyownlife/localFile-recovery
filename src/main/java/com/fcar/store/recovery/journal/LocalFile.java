@@ -66,6 +66,14 @@ public class LocalFile {
         return this.referenceCount.decrementAndGet();
     }
 
+    public int decrementToZero() {
+        int current = this.referenceCount.get();
+        if(current == 0) {
+            return current;
+        }else {
+            return this.referenceCount.decrementAndGet();
+        }
+    }
 
     public int decrement(final int n) {
         return this.referenceCount.addAndGet(-n);
