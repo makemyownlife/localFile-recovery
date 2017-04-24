@@ -45,7 +45,7 @@ public class WriteCommandQueue {
         final Lock lock = this.enqueLock;
         lock.lockInterruptibly();
         try {
-            linkedList.addFirst(writeCommand);
+            linkedList.addLast(writeCommand);
             if (needFlush() || writeCommand.isForce()) {
                 available.signal();
             }
