@@ -117,7 +117,10 @@ public class LocalFileAppender {
         LocalFile dataFile = writeBatch.getDataFile();
         LogLocalFile logLocalFile = writeBatch.getLogLocalFile();
         //分配内存资源
-        final ByteBuffer dataBuf = ByteBuffer.allocate(writeBatch.getBatchDataSize());
+        ByteBuffer dataBuf = null;
+        if (writeBatch.getBatchDataSize() > 0) {
+            dataBuf = ByteBuffer.allocate(writeBatch.getBatchDataSize());
+        }
         final ByteBuffer logBuf = ByteBuffer.allocate(writeBatch.getWriteCommandList().size() * OperateItem.LENGTH);
         for (final WriteCommand writeCommand : writeBatch.getWriteCommandList()) {
             logBuf.put(writeCommand.getOperateItem().toByte());
@@ -195,7 +198,6 @@ public class LocalFileAppender {
                 logger.warn("close error:" + dataFile, e);
             }
         }
-        this.localFileStore.getDataLocalFiles().clear();
         for (final LocalFile lf : this.localFileStore.getLogLocalFiles().values()) {
             try {
                 lf.close();
@@ -203,8 +205,6 @@ public class LocalFileAppender {
                 logger.warn("close error:" + lf, e);
             }
         }
-        this.localFileStore.getLogLocalFiles().clear();
-        this.localFileStore.getIndexMap().close();
     }
 
 }
