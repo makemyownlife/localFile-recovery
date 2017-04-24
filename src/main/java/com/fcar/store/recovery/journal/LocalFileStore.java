@@ -162,7 +162,7 @@ public class LocalFileStore implements AbstractStore {
                         break;
                     case OperateItem.OP_DEL:
                         tempIndexMap.remove(bytesKey);
-                        dataLocalFile.decrementToZero();
+                        dataLocalFile.decrementUntilZero();
                         break;
                     default:
                         logger.warn("unknow operateItem:" + (int) operateItem.getOperate());

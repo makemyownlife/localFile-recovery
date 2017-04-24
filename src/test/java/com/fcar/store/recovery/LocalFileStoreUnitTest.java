@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Iterator;
 
 /**
  * Created by zhangyong on 2017/4/11.
@@ -70,7 +71,7 @@ public class LocalFileStoreUnitTest {
         final ByteBuffer buf = ByteBuffer.allocate(16);
         buf.putLong(orderId);
         byte[] arr = buf.array();
-//        store.add(arr, data, true);
+//      store.add(arr, data, true);
 
         Thread.currentThread().sleep(3000);
         byte[] contents = store.get(arr);
@@ -78,6 +79,23 @@ public class LocalFileStoreUnitTest {
         System.out.println(afterStore);
         Assert.assertEquals("张勇", new String(contents));
         Thread.currentThread().sleep(50000);
+    }
+
+    @Test
+    public void testIterator() throws IOException {
+        String path = "D://localstore";
+        String name = "order-store";
+        AbstractStore store = new LocalFileStore(
+                path,
+                name,
+                true,
+                null
+        );
+        Iterator<byte[]> iterator = store.iterator();
+        while (iterator.hasNext()) {
+            byte[] data = store.get(iterator.next());
+            System.out.println(new String(data ,"UTF-8"));
+        }
     }
 
 }

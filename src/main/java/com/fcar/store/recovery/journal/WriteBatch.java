@@ -58,7 +58,7 @@ public class WriteBatch {
             this.dataFile.increment();
         }
         if (writeCommand.getOperateItem().getOperate() == OperateItem.OP_DEL) {
-            this.dataFile.decrement();
+            this.dataFile.decrementUntilZero();
         }
         this.writeCommandList.add(writeCommand);
     }
