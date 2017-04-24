@@ -97,6 +97,13 @@ public class LocalFileStoreUnitTest {
             System.out.println(new String(data ,"UTF-8"));
         }
         System.out.println(store.size());
+        long start = System.currentTimeMillis();
+        while (iterator.hasNext()) {
+            byte[] data = store.get(iterator.next());
+            System.out.println(new String(data ,"UTF-8"));
+        }
+        System.out.println(store.size());
+        System.out.println(System.currentTimeMillis() - start);
     }
 
 }
