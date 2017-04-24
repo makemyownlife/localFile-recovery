@@ -326,7 +326,15 @@ public class LocalFileStore implements AbstractStore {
 
     @Override
     public void close() throws IOException {
-
+        //同步数据并且关闭文件
+        this.localFileAppender.close();
+        //清理内存
+        this.dataLocalFiles.clear();
+        this.logLocalFiles.clear();
+        this.indexMap.close();
+        this.lastModifiedMap.clear();
+        this.currentLogFile = null;
+        this.currentDataFile = null;
     }
 
     //==========================================================================================get method start ===========================================================

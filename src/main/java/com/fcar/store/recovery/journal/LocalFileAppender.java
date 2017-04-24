@@ -88,7 +88,7 @@ public class LocalFileAppender {
             //当前写文件的编号
             int currentNumber = this.localFileStore.getNumber().get();
             WriteBatch writeBatch = batchMap.get(currentNumber);
-            WriteCommand writeCommand = (WriteCommand) writeCommands.get(i);
+            WriteCommand writeCommand = writeCommands.get(i);
             LocalFile currentDataFile = this.localFileStore.getCurrentDataFile();
             if (writeCommand.getOperateItem().getOperate() == OperateItem.OP_ADD) {
                 //文件太大 或者 批次数据太大
@@ -186,8 +186,25 @@ public class LocalFileAppender {
         writeCommandQueue.insert(writeCommand);
     }
 
-    public void close() {
-
+    public void close() throws IOException {
+        //先同步数据
+        for (final LocalFile dataFile : this.localFileStore.getDataLocalFiles().values()) {
+            try {
+                dataFile.close();
+            } catch (final Exception e) {
+                logger.warn("close error:" + dataFile, e);
+            }
+        }
+        this.localFileStore.getDataLocalFiles().clear();
+        for (final LocalFile lf : this.localFileStore.getLogLocalFiles().values()) {
+            try {
+                lf.close();
+            } catch (final Exception e) {
+                logger.warn("close error:" + lf, e);
+            }
+        }
+        this.localFileStore.getLogLocalFiles().clear();
+        this.localFileStore.getIndexMap().close();
     }
 
 }
