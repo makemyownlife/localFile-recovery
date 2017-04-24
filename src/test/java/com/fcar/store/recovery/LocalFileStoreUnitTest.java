@@ -96,6 +96,7 @@ public class LocalFileStoreUnitTest {
             byte[] data = store.get(iterator.next());
             System.out.println(new String(data ,"UTF-8"));
         }
+        System.out.println(store.size());
     }
 
 }
