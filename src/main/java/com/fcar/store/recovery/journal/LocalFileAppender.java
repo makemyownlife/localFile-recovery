@@ -9,6 +9,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 数据文件操作类
@@ -17,6 +19,8 @@ import java.util.TreeMap;
 public class LocalFileAppender {
 
     private final static Logger logger = LoggerFactory.getLogger(LocalFileAppender.class);
+
+    private final Lock appenderLock = new ReentrantLock();
 
     private volatile boolean started = false;
 
@@ -70,13 +74,19 @@ public class LocalFileAppender {
      * @throws InterruptedException
      */
     private void flushQueueData() throws InterruptedException, IOException {
-        Map<Integer, WriteBatch> batchMap = asembleWriteBatch();
-        Iterator it = batchMap.keySet().iterator();
-        while (it.hasNext()) {
-            Integer number = (Integer) it.next();
-            WriteBatch writeBatch = batchMap.get(number);
-            writeDataAndLogFile(writeBatch);
-            processFileAndIndexMap(writeBatch);
+        Lock lock = this.appenderLock;
+        lock.lockInterruptibly();
+        try {
+            Map<Integer, WriteBatch> batchMap = asembleWriteBatch();
+            Iterator it = batchMap.keySet().iterator();
+            while (it.hasNext()) {
+                Integer number = (Integer) it.next();
+                WriteBatch writeBatch = batchMap.get(number);
+                writeDataAndLogFile(writeBatch);
+                processFileAndIndexMap(writeBatch);
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -190,21 +200,28 @@ public class LocalFileAppender {
         writeCommandQueue.insert(writeCommand);
     }
 
-    public void close() throws IOException {
-        //先同步数据
-        for (final LocalFile dataFile : this.localFileStore.getDataLocalFiles().values()) {
-            try {
-                dataFile.close();
-            } catch (final Exception e) {
-                logger.warn("close error:" + dataFile, e);
+    public void close() throws IOException, InterruptedException {
+        Lock lock = this.appenderLock;
+        lock.lockInterruptibly();
+        try {
+            this.started = false;
+            //先同步数据
+            for (final LocalFile dataFile : this.localFileStore.getDataLocalFiles().values()) {
+                try {
+                    dataFile.close();
+                } catch (final Exception e) {
+                    logger.warn("close error:" + dataFile, e);
+                }
             }
-        }
-        for (final LocalFile lf : this.localFileStore.getLogLocalFiles().values()) {
-            try {
-                lf.close();
-            } catch (final Exception e) {
-                logger.warn("close error:" + lf, e);
+            for (final LocalFile lf : this.localFileStore.getLogLocalFiles().values()) {
+                try {
+                    lf.close();
+                } catch (final Exception e) {
+                    logger.warn("close error:" + lf, e);
+                }
             }
+        } finally {
+            lock.unlock();
         }
     }
 
