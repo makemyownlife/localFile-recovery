@@ -74,19 +74,19 @@ public class LocalFileAppender {
      * @throws InterruptedException
      */
     private void flushQueueData() throws InterruptedException, IOException {
-        Lock lock = this.appenderLock;
-        lock.lockInterruptibly();
-        try {
-            Map<Integer, WriteBatch> batchMap = asembleWriteBatch();
-            Iterator it = batchMap.keySet().iterator();
-            while (it.hasNext()) {
-                Integer number = (Integer) it.next();
-                WriteBatch writeBatch = batchMap.get(number);
+        Map<Integer, WriteBatch> batchMap = asembleWriteBatch();
+        Iterator it = batchMap.keySet().iterator();
+        while (it.hasNext()) {
+            Integer number = (Integer) it.next();
+            WriteBatch writeBatch = batchMap.get(number);
+            Lock lock = this.appenderLock;
+            lock.lockInterruptibly();
+            try {
                 writeDataAndLogFile(writeBatch);
                 processFileAndIndexMap(writeBatch);
+            } finally {
+                lock.unlock();
             }
-        } finally {
-            lock.unlock();
         }
     }
 

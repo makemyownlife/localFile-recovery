@@ -105,6 +105,7 @@ public class LocalFileStoreUnitTest {
         System.out.println(store.size());
         System.out.println(System.currentTimeMillis() - start);
         store.close();
+        Thread.currentThread().sleep(10000);
     }
 
 }
