@@ -25,6 +25,6 @@ public interface AbstractStore {
     int size();
 
     //关闭存储
-    void close() throws IOException;
+    void close() throws IOException, InterruptedException;
 
 }

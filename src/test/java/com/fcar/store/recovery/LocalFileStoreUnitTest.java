@@ -82,7 +82,7 @@ public class LocalFileStoreUnitTest {
     }
 
     @Test
-    public void testIterator() throws IOException {
+    public void testIterator() throws IOException, InterruptedException {
         String path = "D://localstore";
         String name = "order-store";
         AbstractStore store = new LocalFileStore(
@@ -104,6 +104,7 @@ public class LocalFileStoreUnitTest {
         }
         System.out.println(store.size());
         System.out.println(System.currentTimeMillis() - start);
+        store.close();
     }
 
 }

@@ -74,7 +74,7 @@ public class LocalFileStore implements AbstractStore {
             public void run() {
                 try {
                     LocalFileStore.this.close();
-                } catch (final IOException e) {
+                } catch (final Exception e) {
                     logger.error("close error", e);
                 }
             }
@@ -325,7 +325,7 @@ public class LocalFileStore implements AbstractStore {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() throws IOException, InterruptedException {
         //同步数据并且关闭文件
         this.localFileAppender.close();
         //清理内存
