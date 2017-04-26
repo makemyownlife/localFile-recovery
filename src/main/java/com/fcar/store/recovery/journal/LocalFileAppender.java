@@ -39,21 +39,22 @@ public class LocalFileAppender {
             this.appendThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    while (true) {
+                    while (started) {
                         try {
                             LocalFileAppender.this.flushQueueData();
                         } catch (Exception e) {
                             logger.error("run error:", e);
                         }
                     }
+                    logger.warn("appendThread stopped!");
                 }
             });
             logger.warn("start appendThread!");
             this.appendThread.setName("appendThread");
             this.appendThread.setPriority(Thread.MAX_PRIORITY);
             this.appendThread.setDaemon(true);
-            this.appendThread.start();
             this.started = true;
+            this.appendThread.start();
         } catch (Throwable e) {
             logger.error("startAppendThread error: ", e);
         }

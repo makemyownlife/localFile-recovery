@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -69,7 +70,9 @@ public class WriteCommandQueue {
             while (true) {
                 WriteCommand writeCommand = this.linkedList.peek();
                 if (writeCommand == null && writeCommands.size() == 0) {
-                    available.await();
+                    //若无数据,等待三秒的内容
+                    long nanos = TimeUnit.MILLISECONDS.toNanos(3000);
+                    available.awaitNanos(nanos);
                 }
                 if (writeCommand != null) {
                     writeCommand = this.linkedList.pop();
