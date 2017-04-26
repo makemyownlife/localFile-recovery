@@ -72,7 +72,6 @@ public class WriteCommandQueue {
                 if (writeCommand == null && writeCommands.size() == 0) {
                     //若无数据,等待三秒的内容
                     long nanos = TimeUnit.MILLISECONDS.toNanos(3000);
-                    logger.info("awaitNanos");
                     available.awaitNanos(nanos);
                 }
                 if (writeCommand != null) {
