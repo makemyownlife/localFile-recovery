@@ -4,6 +4,13 @@ import com.fcar.store.recovery.journal.LocalFileStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Created by zhangyong on 2017/4/10.
  */
@@ -13,29 +20,54 @@ public class RecoveryManager {
 
     private RecoveryConfig recoveryConfig;
 
-    private String name;
-
-    private String path;
+    private SubscribeInfoManager subscribeInfoManager;
 
     private LocalFileStore localFileStore;
 
-    public RecoveryManager(RecoveryConfig recoveryConfig, String name, String path) {
+    private ScheduledExecutorService scheduledExecutorService;
+
+    public RecoveryManager(RecoveryConfig recoveryConfig, SubscribeInfoManager subscribeInfoManager) {
         this.recoveryConfig = recoveryConfig;
-        this.name = name;
-        this.path = path;
-        this.makeStore();
+        this.subscribeInfoManager = subscribeInfoManager;
+        this.makeStoreAndStartSchedule();
     }
 
-    private void makeStore() {
+    private void makeStoreAndStartSchedule() {
         try {
-            this.localFileStore = new LocalFileStore(this.path, this.name, true);
+            this.localFileStore = new LocalFileStore(this.recoveryConfig.getPath(), this.recoveryConfig.getStoreName(), true);
+            this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+            this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Iterator<byte[]> iterator = getLocalFileStore().iterator();
+                        while (iterator.hasNext()) {
+                            byte[] key = iterator.next();
+                            byte[] data = getLocalFileStore().get(key);
+                            if (data != null) {
+                                subscribeInfoManager.handle(key, data);
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.error("schedule run error: ", e);
+                    }
+                }
+            }, this.recoveryConfig.getRecoverMessageIntervalInmills(), this.recoveryConfig.getRecoverMessageIntervalInmills(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             logger.error("makeStore error: ", e);
         }
     }
 
-    public void appendMessage(Long key, byte[] data) {
+    public void appendMessage(Long key, byte[] data) throws IOException, InterruptedException {
+        final ByteBuffer buf = ByteBuffer.allocate(16);
+        buf.putLong(key);
+        byte[] arr = buf.array();
+        this.localFileStore.add(arr, data);
+    }
 
+    //======================================================================get method ==============================================================
+    public LocalFileStore getLocalFileStore() {
+        return localFileStore;
     }
 
 }

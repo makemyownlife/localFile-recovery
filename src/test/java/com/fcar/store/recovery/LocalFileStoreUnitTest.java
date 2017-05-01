@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 
@@ -94,18 +95,45 @@ public class LocalFileStoreUnitTest {
         Iterator<byte[]> iterator = store.iterator();
         while (iterator.hasNext()) {
             byte[] data = store.get(iterator.next());
-            System.out.println(new String(data ,"UTF-8"));
+            System.out.println(new String(data, "UTF-8"));
         }
         System.out.println(store.size());
         long start = System.currentTimeMillis();
         while (iterator.hasNext()) {
             byte[] data = store.get(iterator.next());
-            System.out.println(new String(data ,"UTF-8"));
+            System.out.println(new String(data, "UTF-8"));
         }
         System.out.println(store.size());
         System.out.println(System.currentTimeMillis() - start);
         store.close();
         Thread.currentThread().sleep(10000);
+    }
+
+    @Test
+    public void testRcoveryManager() throws InterruptedException {
+        String path = "D://localstore";
+        String name = "order-store";
+        RecoveryConfig recoveryConfig = new RecoveryConfig();
+        recoveryConfig.setPath(path);
+        recoveryConfig.setStoreName(name);
+        recoveryConfig.setRecoverMessageIntervalInmills(10000L);
+
+        SubscribeInfoManager subscribeInfoManager = new SubscribeInfoManager() {
+            @Override
+            public void handle(byte[] key, byte[] data) throws UnsupportedEncodingException {
+                //字节转long型
+                long num = 0;
+                for (int ix = 0; ix < 8; ++ix) {
+                    num <<= 8;
+                    num |= (key[ix] & 0xff);
+                }
+                String content = new String(data, "UTF-8");
+                logger.info("num:{} content:{}", num, content);
+            }
+        };
+
+        RecoveryManager recoveryManager = new RecoveryManager(recoveryConfig, subscribeInfoManager);
+        Thread.currentThread().sleep(300000);
     }
 
 }
