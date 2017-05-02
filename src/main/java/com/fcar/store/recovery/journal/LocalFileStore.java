@@ -35,6 +35,10 @@ public class LocalFileStore implements AbstractStore {
 
     private final Map<BytesKey, Long> lastModifiedMap = new ConcurrentHashMap<BytesKey, Long>();
 
+    //本地文件加载器
+    private LocalFileLoader localFileLoader;
+
+    //本地文件操作器
     private LocalFileAppender localFileAppender;
 
     //当前的数据文件
