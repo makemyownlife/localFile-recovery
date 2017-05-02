@@ -45,7 +45,12 @@ public class RecoveryManager {
                             byte[] key = iterator.next();
                             byte[] data = getLocalFileStore().get(key);
                             if (data != null) {
-                                subscribeInfoManager.handle(key, data);
+                                try {
+                                    subscribeInfoManager.handle(key, data);
+                                    getLocalFileStore().remove(key);
+                                } catch (Throwable e) {
+                                    logger.error("handle error:", e);
+                                }
                             }
                         }
                     } catch (Exception e) {
@@ -63,6 +68,15 @@ public class RecoveryManager {
         buf.putLong(key);
         byte[] arr = buf.array();
         this.localFileStore.add(arr, data);
+    }
+
+    public void shutdown() {
+        try {
+            this.localFileStore.close();
+        } catch (Exception e) {
+            logger.error("close error: ", e);
+        }
+        this.scheduledExecutorService.shutdown();
     }
 
     //======================================================================get method ==============================================================
