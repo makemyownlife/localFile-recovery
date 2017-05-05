@@ -25,8 +25,7 @@ public class LocalFileStoreUnitTest {
         AbstractStore store = new LocalFileStore(
                 path,
                 name,
-                true,
-                null
+                true
         );
         for (int i = 0; i < 1; i++) {
             Long orderId = 87665L;
@@ -64,9 +63,7 @@ public class LocalFileStoreUnitTest {
         AbstractStore store = new LocalFileStore(
                 path,
                 name,
-                true,
-                null
-        );
+                true);
         Long orderId = 87665L;
         byte[] data = "张勇".getBytes("UTF-8");
         final ByteBuffer buf = ByteBuffer.allocate(16);
@@ -89,8 +86,7 @@ public class LocalFileStoreUnitTest {
         AbstractStore store = new LocalFileStore(
                 path,
                 name,
-                true,
-                null
+                true
         );
         Iterator<byte[]> iterator = store.iterator();
         while (iterator.hasNext()) {

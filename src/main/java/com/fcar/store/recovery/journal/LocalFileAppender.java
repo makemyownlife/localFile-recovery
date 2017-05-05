@@ -24,14 +24,13 @@ public class LocalFileAppender {
 
     private volatile boolean started = false;
 
-    private LocalFileStore localFileStore;
+    private LocalFileLoader localFileLoader;
 
     private Thread appendThread;
 
     private WriteCommandQueue writeCommandQueue;
 
-    public LocalFileAppender(LocalFileStore localFileStore) {
-        this.localFileStore = localFileStore;
+    public LocalFileAppender(LocalFileLoader localFileLoader) {
         //写入命令队列
         this.writeCommandQueue = new WriteCommandQueue();
         //启动异步入盘线程
@@ -97,26 +96,26 @@ public class LocalFileAppender {
             //是否需要创建新的文件
             boolean createNextFile = false;
             //当前写文件的编号
-            int currentNumber = this.localFileStore.getNumber().get();
+            int currentNumber = this.localFileLoader.getNumber().get();
             WriteBatch writeBatch = batchMap.get(currentNumber);
             WriteCommand writeCommand = writeCommands.get(i);
-            LocalFile currentDataFile = this.localFileStore.getCurrentDataFile();
+            LocalFile currentDataFile = this.localFileLoader.getCurrentDataFile();
             if (writeCommand.getOperateItem().getOperate() == OperateItem.OP_ADD) {
                 //文件太大 或者 批次数据太大
-                if (writeCommand.getData().length + currentDataFile.position() >= this.localFileStore.DEFAULT_MAX_FILE_SIZE ||
-                        (writeBatch != null && writeBatch.getBatchDataSize() + writeCommand.getData().length >= this.localFileStore.DEFAULT_MAX_BATCH_SIZE)) {
-                    this.localFileStore.createNewLocalFile();
+                if (writeCommand.getData().length + currentDataFile.position() >= this.localFileLoader.DEFAULT_MAX_FILE_SIZE ||
+                        (writeBatch != null && writeBatch.getBatchDataSize() + writeCommand.getData().length >= this.localFileLoader.DEFAULT_MAX_BATCH_SIZE)) {
+                    this.localFileLoader.createNewLocalFile();
                     createNextFile = true;
                 }
             }
             //初始化writeBatch
             if (writeBatch == null || createNextFile) {
                 writeBatch = new WriteBatch(
-                        this.localFileStore.getNumber().get(),
-                        this.localFileStore.getCurrentDataFile(),
-                        this.localFileStore.getCurrentLogFile()
+                        this.localFileLoader.getNumber().get(),
+                        this.localFileLoader.getCurrentDataFile(),
+                        this.localFileLoader.getCurrentLogFile()
                 );
-                batchMap.put(this.localFileStore.getNumber().get(), writeBatch);
+                batchMap.put(this.localFileLoader.getNumber().get(), writeBatch);
             }
             //添加到批次中,并且设置 操作的 offset 和 number
             writeBatch.addWriteCommandAndSetOperateItem(writeCommand);
@@ -160,10 +159,10 @@ public class LocalFileAppender {
         for (final WriteCommand writeCommand : writeBatch.getWriteCommandList()) {
             OperateItem operateItem = writeCommand.getOperateItem();
             if (operateItem.getOperate() == OperateItem.OP_ADD) {
-                this.localFileStore.getIndexMap().put(new BytesKey(operateItem.getKey()), operateItem);
+                this.localFileLoader.getIndexMap().put(new BytesKey(operateItem.getKey()), operateItem);
             }
             if (operateItem.getOperate() == OperateItem.OP_DEL) {
-                this.localFileStore.getIndexMap().remove(new BytesKey(operateItem.getKey()));
+                this.localFileLoader.getIndexMap().remove(new BytesKey(operateItem.getKey()));
             }
         }
         writeCommandQueue.setLastFlushTime();
@@ -171,10 +170,10 @@ public class LocalFileAppender {
             LocalFile dataFile = writeBatch.getDataFile();
             LogLocalFile logLocalFile = writeBatch.getLogLocalFile();
 
-            int currentNumber = this.localFileStore.getNumber().get();
+            int currentNumber = this.localFileLoader.getNumber().get();
             if (currentNumber > writeBatch.getNumber() && dataFile.isUnUsed()) {
-                this.localFileStore.getDataLocalFiles().remove(Integer.valueOf(dataFile.getNumber()));
-                this.localFileStore.getLogLocalFiles().remove(Integer.valueOf(dataFile.getNumber()));
+                this.localFileLoader.getDataLocalFiles().remove(Integer.valueOf(dataFile.getNumber()));
+                this.localFileLoader.getLogLocalFiles().remove(Integer.valueOf(dataFile.getNumber()));
                 dataFile.delete();
                 logLocalFile.delete();
             }
@@ -206,14 +205,14 @@ public class LocalFileAppender {
         try {
             this.started = false;
             //先同步数据
-            for (final LocalFile dataFile : this.localFileStore.getDataLocalFiles().values()) {
+            for (final LocalFile dataFile : this.localFileLoader.getDataLocalFiles().values()) {
                 try {
                     dataFile.close();
                 } catch (final Exception e) {
                     logger.warn("close error:" + dataFile, e);
                 }
             }
-            for (final LocalFile lf : this.localFileStore.getLogLocalFiles().values()) {
+            for (final LocalFile lf : this.localFileLoader.getLogLocalFiles().values()) {
                 try {
                     lf.close();
                 } catch (final Exception e) {
