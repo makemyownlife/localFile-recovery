@@ -31,6 +31,7 @@ public class LocalFileAppender {
     private WriteCommandQueue writeCommandQueue;
 
     public LocalFileAppender(LocalFileLoader localFileLoader) {
+        this.localFileLoader = localFileLoader;
         //写入命令队列
         this.writeCommandQueue = new WriteCommandQueue();
         //启动异步入盘线程
@@ -102,7 +103,8 @@ public class LocalFileAppender {
             LocalFile currentDataFile = this.localFileLoader.getCurrentDataFile();
             if (writeCommand.getOperateItem().getOperate() == OperateItem.OP_ADD) {
                 //文件太大 或者 批次数据太大
-                if (writeCommand.getData().length + currentDataFile.position() >= this.localFileLoader.DEFAULT_MAX_FILE_SIZE ||
+                if (currentDataFile == null ||
+                        writeCommand.getData().length + currentDataFile.position() >= this.localFileLoader.DEFAULT_MAX_FILE_SIZE ||
                         (writeBatch != null && writeBatch.getBatchDataSize() + writeCommand.getData().length >= this.localFileLoader.DEFAULT_MAX_BATCH_SIZE)) {
                     this.localFileLoader.createNewLocalFile();
                     createNextFile = true;
