@@ -56,7 +56,7 @@ public class WriteCommandQueue {
     }
 
     private boolean needFlush() {
-        if (this.linkedList.size() >= this.maxFlushCommandsCount || (System.currentTimeMillis() - lastFlushTime > 2000L)) {
+        if (this.linkedList.size() >= this.maxFlushCommandsCount || (System.currentTimeMillis() - lastFlushTime > 5000L)) {
             return true;
         }
         return false;
